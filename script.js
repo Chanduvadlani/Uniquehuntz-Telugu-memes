@@ -1,4 +1,4 @@
-// --- FIREBASE CONFIG ---
+// --- CONFIGURATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyDbNRvlCOOP-JObYpLTFHzFQfld7nuEmzw",
     authDomain: "uniquehuntz-telugu-memes.firebaseapp.com",
@@ -8,72 +8,122 @@ const firebaseConfig = {
     appId: "1:353299095115:web:b5c6e41e019237b15037ce"
 };
 
+// --- CLOUDINARY SETTINGS ---
+// Updated with your actual Cloud Name from the screenshot
+const CLOUD_NAME = "dgihkijul"; 
+const UPLOAD_PRESET = "uniquehuntz_preset"; 
+
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const storage = firebase.storage();
-const auth = firebase.auth(); // Added Auth Service
+const auth = firebase.auth();
 
 let isAdmin = false;
 
-// --- GOOGLE/EMAIL AUTH LOGIC ---
-// This listens for login/logout changes automatically
+// --- AUTH MONITOR ---
 auth.onAuthStateChanged((user) => {
+    const loggedOutView = document.getElementById('logged-out-view');
+    const loggedInView = document.getElementById('logged-in-view');
+    
     if (user) {
         isAdmin = true;
-        document.getElementById('logged-out-view').style.display = 'none';
-        document.getElementById('logged-in-view').style.display = 'block';
-        console.log("Logged in as:", user.email);
+        if(loggedOutView) loggedOutView.style.display = 'none';
+        if(loggedInView) loggedInView.style.display = 'block';
     } else {
         isAdmin = false;
-        document.getElementById('logged-out-view').style.display = 'block';
-        document.getElementById('logged-in-view').style.display = 'none';
+        if(loggedOutView) loggedOutView.style.display = 'block';
+        if(loggedInView) loggedInView.style.display = 'none';
     }
-    renderMemes(); // Refresh memes to show/hide delete buttons
+    renderMemes(); 
 });
 
+// --- CORE FUNCTIONS ---
+
 async function manualLogin() {
-    const email = document.getElementById('adminUser').value; // Enter your Email
-    const pass = document.getElementById('adminPass').value; // Enter your Password
+    const email = document.getElementById('adminUser').value;
+    const pass = document.getElementById('adminPass').value;
+    
+    if(!email || !pass) return showAlert("Please enter Email & Password");
 
     try {
         await auth.signInWithEmailAndPassword(email, pass);
-        showAlert("Welcome back, Admin!");
+        showAlert("Access Granted, Boss!");
     } catch (error) {
-        showAlert("Login Failed: " + error.message);
+        showAlert("Login Error: " + error.message);
     }
 }
 
 async function manualLogout() {
+    await auth.signOut();
+    showAlert("Warehouse Locked.");
+}
+
+async function processAndUpload() {
+    const btn = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('fileInput');
+    const title = document.getElementById('memeTitle').value;
+    const artist = document.getElementById('memeArtist').value || "Legend";
+    const type = document.getElementById('memeType').value;
+    const tagsInput = document.getElementById('memeTags').value;
+
+    if (!fileInput.files[0] || !title) return showAlert("File and Title are required!");
+
+    btn.disabled = true;
+    btn.innerText = "Uploading to Cloud...";
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
     try {
-        await auth.signOut();
-        showAlert("Warehouse Locked.");
-    } catch (error) {
-        showAlert("Logout failed.");
+        // Resource type must be 'auto' to handle images and videos automatically
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (!data.secure_url) {
+            console.error("Cloudinary Error:", data);
+            throw new Error(data.error ? data.error.message : "Upload failed");
+        }
+
+        btn.innerText = "Saving to Database...";
+
+        // Save to Firebase Firestore
+        await db.collection("memes").add({
+            title: title,
+            artist: artist,
+            url: data.secure_url,
+            public_id: data.public_id,
+            type: type,
+            likes: 0,
+            tags: (title + " " + artist + " " + tagsInput).toLowerCase(),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showAlert("Success! Added to Warehouse.");
+        switchPage('feed');
+        
+        // Reset form
+        document.getElementById('memeTitle').value = "";
+        fileInput.value = "";
+    } catch (e) {
+        console.error("Full Error:", e);
+        showAlert("Error: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Secure to Warehouse";
     }
 }
 
-// --- NAVIGATION ---
-function switchPage(pageId) {
-    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    
-    document.getElementById(`${pageId}-page`).style.display = 'block';
-    const navId = pageId === 'feed' ? 'home' : pageId;
-    document.getElementById(`nav-${navId}`).classList.add('active');
-    
-    if(pageId === 'feed') renderMemes();
-    if(pageId === 'library') loadArtistFolders();
-}
-
-// --- CORE RENDERING ---
-async function renderMemes(filter = "All", btn = null) {
-    if(btn) updateChips(btn);
-    const grid = (document.getElementById('library-page').style.display === 'block') 
-                 ? document.getElementById('libraryResults') : document.getElementById('memeGrid');
-    
+async function renderMemes(filter = "All") {
+    const grid = document.getElementById('memeGrid');
     if(!grid) return;
-    grid.innerHTML = "<p style='text-align:center; grid-column:1/-1;'>Hunting Templates...</p>";
-    
+    grid.innerHTML = "<p style='text-align:center;'>Hunting Templates...</p>";
+
     try {
         const snapshot = await db.collection("memes").orderBy("timestamp", "desc").get();
         grid.innerHTML = "";
@@ -82,19 +132,17 @@ async function renderMemes(filter = "All", btn = null) {
             if (filter !== "All" && m.artist !== filter) return;
             grid.innerHTML += createCard(doc.id, m);
         });
-    } catch(e) { grid.innerHTML = "Error loading Warehouse."; }
+    } catch(e) {
+        grid.innerHTML = "Warehouse Busy. Try again.";
+    }
 }
 
 function createCard(id, m) {
-    let deleteBtn = "";
-    // Only show delete button if Firebase confirms you are logged in
-    if (isAdmin) {
-        deleteBtn = `<button onclick="deleteMeme('${id}', '${m.storagePath}')" style="background:#ff4757; color:white; border:none; width:100%; padding:8px; margin-top:8px; border-radius:8px; font-weight:bold; cursor:pointer;">🗑️ DELETE</button>`;
-    }
-
+    let deleteBtn = isAdmin ? `<button onclick="deleteMeme('${id}')" style="background:#ff4757; color:white; border:none; width:100%; padding:8px; margin-top:8px; border-radius:8px; font-weight:bold; cursor:pointer;">🗑️ DELETE</button>` : "";
+    
     return `
         <div class="meme-card" data-tags="${m.tags}">
-            <div class="card-media">${m.type === 'video' ? '🎬' : m.type === 'audio' ? '🎵' : '🖼️'}</div>
+            <div class="card-media">${m.type === 'video' ? '🎬' : '🖼️'}</div>
             <div class="card-info">
                 <h3>${m.title}</h3>
                 <button class="btn-download" onclick="window.open('${m.url}')">GET</button>
@@ -107,7 +155,16 @@ function createCard(id, m) {
         </div>`;
 }
 
-// --- UPLOAD, LIKE & DELETE ---
+async function deleteMeme(id) {
+    if(confirm("Admin: Remove this template forever?")) {
+        try {
+            await db.collection("memes").doc(id).delete();
+            showAlert("Removed.");
+            renderMemes();
+        } catch(e) { showAlert("Error deleting."); }
+    }
+}
+
 async function handleLike(id) {
     await db.collection("memes").doc(id).update({ 
         likes: firebase.firestore.FieldValue.increment(1) 
@@ -116,45 +173,21 @@ async function handleLike(id) {
     if(l) l.innerText = parseInt(l.innerText) + 1;
 }
 
-async function deleteMeme(id, path) {
-    if(confirm("Admin: Delete this template forever?")) {
-        try {
-            await db.collection("memes").doc(id).delete();
-            if(path) await storage.ref(path).delete();
-            showAlert("Deleted!");
-            renderMemes();
-        } catch(e) { showAlert("Delete failed."); }
-    }
-}
-
-async function processAndUpload() {
-    const btn = document.getElementById('uploadBtn');
-    const artist = document.getElementById('memeArtist').value || "Legend";
-    const title = document.getElementById('memeTitle').value;
-    const file = document.getElementById('fileInput').files[0];
-
-    if(!title || !file) return showAlert("Missing title or file!");
-
-    btn.disabled = true; btn.innerText = "Securing...";
-    const path = `templates/${Date.now()}_${title}`;
+// --- NAVIGATION ---
+function switchPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+    const targetPage = document.getElementById(`${pageId}-page`);
+    if(targetPage) targetPage.style.display = 'block';
     
-    try {
-        const snap = await storage.ref(path).put(file);
-        const url = await snap.ref.getDownloadURL();
+    // Update active nav item
+    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    const navId = pageId === 'feed' ? 'home' : pageId;
+    const navBtn = document.getElementById(`nav-${navId}`);
+    if(navBtn) navBtn.classList.add('active');
 
-        await db.collection("memes").add({
-            title, artist, url, storagePath: path, likes: 0,
-            type: document.getElementById('memeType').value,
-            tags: (title + " " + artist + " " + document.getElementById('memeTags').value).toLowerCase(),
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        showAlert("Added to Warehouse!");
-        switchPage('feed');
-    } catch(e) { showAlert("Upload Failed!"); }
-    finally { btn.disabled = false; btn.innerText = "Secure to Warehouse"; }
+    if(pageId === 'feed') renderMemes();
 }
 
-// --- UTILS ---
 function filterMemes() {
     let q = document.getElementById('searchInput').value.toLowerCase();
     document.querySelectorAll('.meme-card').forEach(c => {
@@ -163,29 +196,14 @@ function filterMemes() {
     });
 }
 
-function loadArtistFolders() {
-    db.collection("memes").get().then(snap => {
-        const grid = document.getElementById('artistFolderGrid');
-        if(!grid) return;
-        const artists = new Set();
-        snap.forEach(doc => { if(doc.data().artist) artists.add(doc.data().artist); });
-        grid.innerHTML = "";
-        artists.forEach(a => {
-            grid.innerHTML += `<div class="folder-card" onclick="renderMemes('${a}')">👤<br><span>${a}</span></div>`;
-        });
-    });
-}
-
-function updateChips(btn) { 
-    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); 
-    btn.classList.add('active'); 
-}
-
 function showAlert(m) { 
-    document.getElementById('alertMessage').innerText = m; 
-    document.getElementById('customAlert').style.display = 'flex'; 
+    const alertBox = document.getElementById('customAlert');
+    const alertMsg = document.getElementById('alertMessage');
+    if(alertBox && alertMsg) {
+        alertMsg.innerText = m; 
+        alertBox.style.display = 'flex'; 
+    }
 }
-
 function closeAlert() { document.getElementById('customAlert').style.display = 'none'; }
 function shareWA(url) { window.open(`https://wa.me/?text=${encodeURIComponent(url)}`); }
 

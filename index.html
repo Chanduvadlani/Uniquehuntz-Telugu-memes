@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniqueHuntz | Telugu Meme Social</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="app-header">
+        <h1 id="logo">UNIQUEHUNTZ</h1>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search Sunil, Brahmi, vibes...">
+        </div>
+        <div class="category-bar">
+            <button class="chip active" id="filter-all">All</button>
+            <button class="chip" id="filter-popular">🔥 Popular</button>
+            <button class="chip" id="filter-mass">Mass</button>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <section id="feed-page" class="page" style="display: block;">
+            <div class="grid-container" id="memeGrid"></div>
+        </section>
+
+        <section id="upload-page" class="page">
+            <div class="upload-container">
+                <h2>New Entry</h2>
+                <select id="memeType">
+                    <option value="image">🖼️ Image</option>
+                    <option value="video">🎬 Video</option>
+                    <option value="audio">🎵 Audio</option>
+                </select>
+                <input type="text" id="memeArtist" placeholder="Artist Name">
+                <input type="text" id="memeTitle" placeholder="Template Title">
+                <input type="file" id="fileInput">
+                <button class="btn-primary" id="uploadBtn">Secure to Warehouse</button>
+            </div>
+        </section>
+
+        <section id="profile-page" class="page">
+            <div id="logged-out-view" class="auth-view">
+                <h2>Join the Warehouse</h2>
+                <button class="btn-primary" id="loginBtn">Sign in with Google</button>
+            </div>
+            <div id="logged-in-view" class="auth-view" style="display:none;">
+                <img id="profile-pic" src="" alt="Profile">
+                <h2 id="profile-name"></h2>
+                <button class="btn-outline" id="logoutBtn">Logout</button>
+            </div>
+        </section>
+    </main>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" data-page="feed"><span>🏠 Feed</span></div>
+        <div class="nav-item" data-page="upload"><span>📤 Upload</span></div>
+        <div class="nav-item" data-page="profile"><span>👤 Profile</span></div>
+    </nav>
+
+    <div id="customAlert" class="modal-overlay">
+        <div class="modal-box">
+            <p id="alertMessage"></p>
+            <button class="btn-primary" id="closeAlert">Got it</button>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

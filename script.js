@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, orderBy, query, limit, where, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDbNRvlCOOP-JObYpLTFHzFQfld7nuEmzw",
@@ -19,14 +19,9 @@ const auth = getAuth(app);
 const storage = getStorage(app);
 const provider = new GoogleAuthProvider();
 
-// 1. ADMIN SETTINGS - Replace with your UID after your first successful login
-const ADMIN_UID = "PASTE_YOUR_UID_HERE"; 
-
 let currentUser = null;
 
-// --- AUTH LOGIC ---
-
-// Handles UI switching and catching the login result
+// --- AUTH OBSERVER ---
 onAuthStateChanged(auth, (user) => {
     const loView = document.getElementById('logged-out-view');
     const liView = document.getElementById('logged-in-view');
@@ -35,6 +30,180 @@ onAuthStateChanged(auth, (user) => {
         currentUser = user;
         if(loView) loView.style.display = 'none';
         if(liView) {
+            liView.style.display = 'block';
+            document.getElementById('profile-pic').src = user.photoURL;
+            document.getElementById('profile-name').innerText = user.displayName;
+            document.getElementById('profile-email').innerText = user.email;
+        }
+        fetchUserStats();
+    } else {
+        currentUser = null;
+        if(loView) loView.style.display = 'block';
+        if(liView) liView.style.display = 'none';
+    }
+    renderMemes();
+});
+
+// Catch login redirect result
+getRedirectResult(auth).catch((e) => {
+    if(e.code === "auth/unauthorized-domain") {
+        showAlert("Please add your domain to Firebase settings!");
+    }
+});
+
+window.login = async () => { 
+    try {
+        await signInWithRedirect(auth, provider);
+    } catch(e) { showAlert("Login Failed"); }
+};
+
+window.logout = async () => { 
+    if(confirm("Logout from UniqueHuntz?")) signOut(auth); 
+};
+
+// --- NAVIGATION ---
+window.switchPage = (pageId) => {
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    
+    const targetPage = document.getElementById(`${pageId}-page`);
+    if(targetPage) targetPage.style.display = 'block';
+    
+    const targetNav = document.getElementById(`nav-${pageId === 'feed' ? 'home' : pageId}`);
+    if(targetNav) targetNav.classList.add('active');
+    
+    if(pageId === 'feed') renderMemes();
+    if(pageId === 'library') loadArtistFolders();
+};
+
+// --- RENDERING ---
+window.renderMemes = async (filter = "All", btn = null) => {
+    if(btn) updateChips(btn);
+    const grid = (document.getElementById('library-page')?.style.display === 'block') 
+                 ? document.getElementById('libraryResults') : document.getElementById('memeGrid');
+    
+    if(!grid) return;
+    grid.innerHTML = "<p style='text-align:center; grid-column:1/-1;'>Hunting...</p>";
+    
+    try {
+        const q = query(collection(db, "memes"), orderBy("timestamp", "desc"));
+        const snapshot = await getDocs(q);
+        grid.innerHTML = "";
+        snapshot.forEach(doc => {
+            const m = doc.data();
+            if (filter !== "All" && m.artist !== filter) return;
+            grid.innerHTML += createCard(doc.id, m);
+        });
+    } catch(e) { grid.innerHTML = "Error loading memes."; }
+};
+
+function createCard(id, m) {
+    return `
+        <div class="meme-card" data-tags="${m.tags}">
+            <div class="card-media">${m.type === 'video' ? '🎬' : m.type === 'audio' ? '🎵' : '🖼️'}</div>
+            <div class="card-info">
+                <h3>${m.title}</h3>
+                <button class="btn-download" onclick="window.open('${m.url}')">GET</button>
+            </div>
+            <div class="card-engagement">
+                <button class="engage-btn" onclick="handleLike('${id}')">❤️ <span id="l-${id}">${m.likes || 0}</span></button>
+                <button class="engage-btn" onclick="shareWA('${m.url}')">🔗 Share</button>
+            </div>
+        </div>`;
+}
+
+// --- CORE FEATURES ---
+window.handleLike = async (id) => {
+    if(!currentUser) return showAlert("Go to Profile to Login!");
+    
+    const likeRef = doc(db, "memes", id, "userLikes", currentUser.uid);
+    const likeDoc = await getDoc(likeRef);
+    
+    if(likeDoc.exists()) return showAlert("Already Liked!");
+
+    await updateDoc(doc(db, "memes", id), { likes: increment(1) });
+    await setDoc(likeRef, { uid: currentUser.uid });
+    
+    const countSpan = document.getElementById(`l-${id}`);
+    if(countSpan) countSpan.innerText = parseInt(countSpan.innerText) + 1;
+};
+
+window.processAndUpload = async () => {
+    if(!currentUser) return showAlert("Go to Profile to Login!");
+    
+    const btn = document.getElementById('uploadBtn');
+    const artist = document.getElementById('memeArtist').value || "Legend";
+    const title = document.getElementById('memeTitle').value;
+    const file = document.getElementById('fileInput').files[0];
+
+    if(!title || !file) return showAlert("Missing title or file!");
+
+    btn.disabled = true; btn.innerText = "Securing...";
+    const path = `templates/${Date.now()}_${title}`;
+    
+    try {
+        const storageRef = ref(storage, path);
+        const snap = await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(snap.ref);
+
+        await addDoc(collection(db, "memes"), {
+            title, artist, url, storagePath: path, likes: 0,
+            uploaderId: currentUser.uid,
+            type: document.getElementById('memeType').value,
+            tags: (title + " " + artist + " " + document.getElementById('memeTags').value).toLowerCase(),
+            timestamp: serverTimestamp()
+        });
+        showAlert("Added to Warehouse!");
+        switchPage('feed');
+    } catch(e) { showAlert("Upload Failed!"); }
+    finally { btn.disabled = false; btn.innerText = "Secure to Warehouse"; }
+};
+
+window.shareWA = (url) => { 
+    window.open(`https://wa.me/?text=${encodeURIComponent("Check this template: " + url)}`); 
+};
+
+async function fetchUserStats() {
+    const qCount = query(collection(db, "memes"), where("uploaderId", "==", currentUser.uid));
+    const snap = await getDocs(qCount);
+    const countEl = document.getElementById('user-uploads-count');
+    if(countEl) countEl.innerText = snap.size;
+}
+
+window.filterMemes = () => {
+    let q = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('.meme-card').forEach(c => {
+        const tags = c.getAttribute('data-tags') || "";
+        c.style.display = tags.includes(q) ? "block" : "none";
+    });
+};
+
+// --- ALERTS ---
+window.showAlert = (m) => { 
+    document.getElementById('alertMessage').innerText = m; 
+    document.getElementById('customAlert').style.display = 'flex'; 
+};
+
+window.closeAlert = () => { 
+    document.getElementById('customAlert').style.display = 'none'; 
+};
+
+function updateChips(btn) { 
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); 
+    btn.classList.add('active'); 
+}
+
+window.renderPopular = async (btn) => {
+    updateChips(btn);
+    const grid = document.getElementById('memeGrid');
+    grid.innerHTML = "Loading Trends...";
+    const q = query(collection(db, "memes"), orderBy("likes", "desc"), limit(10));
+    const snap = await getDocs(q);
+    grid.innerHTML = "";
+    snap.forEach(doc => grid.innerHTML += createCard(doc.id, doc.data()));
+};
+
+window.onload = () => renderMemes();        if(liView) {
             liView.style.display = 'block';
             document.getElementById('profile-pic').src = user.photoURL;
             document.getElementById('profile-name').innerText = user.displayName;

@@ -1,0 +1,50 @@
+:root { --bg: #05070a; --card: #12141c; --accent: #38bdf8; --text: #ffffff; --dim: #94a3b8; --glass: rgba(255, 255, 255, 0.05); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; overflow-x: hidden; }
+
+.app-header { padding: 15px; background: rgba(5,7,10,0.95); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--glass); }
+.app-header h1 { font-family: 'Bebas Neue'; color: var(--accent); margin: 0 0 10px 0; font-size: 32px; text-align: center; cursor: pointer; }
+
+.search-box input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--glass); background: var(--card); color: white; margin-bottom: 10px; }
+.category-bar { display: flex; overflow-x: auto; gap: 8px; scrollbar-width: none; }
+.chip { flex: 0 0 auto; padding: 6px 15px; background: var(--card); border-radius: 20px; color: var(--dim); border: 1px solid var(--glass); font-size: 13px; border: none; }
+.chip.active { background: var(--accent); color: #000; font-weight: bold; }
+
+.grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 12px; padding-bottom: 100px; }
+.meme-card { background: var(--card); border-radius: 15px; border: 1px solid var(--glass); overflow: hidden; }
+.card-media { height: 120px; background: #000; display: flex; align-items: center; justify-content: center; font-size: 40px; }
+.card-info { padding: 10px; }
+.card-info h3 { font-size: 13px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.btn-download { width: 100%; background: var(--accent); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; padding: 8px; font-size: 12px; }
+
+.card-engagement { display: flex; justify-content: space-between; padding: 10px; border-top: 1px solid var(--glass); }
+.engage-btn { background: none; border: none; color: var(--dim); font-size: 14px; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+.bottom-nav { position: fixed; bottom: 0; width: 100%; height: 70px; background: #05070a; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--glass); z-index: 1000; }
+.nav-item { color: var(--dim); font-size: 11px; cursor: pointer; text-align: center; opacity: 0.6; }
+.nav-item.active { color: var(--accent); font-weight: bold; opacity: 1; }
+.nav-item span { display: block; margin-top: 4px; }
+
+/* Profile Styles */
+.profile-container { padding: 40px 20px; text-align: center; }
+.auth-hero { margin-top: 20%; }
+.hero-icon { font-size: 60px; margin-bottom: 15px; }
+.profile-header img { width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--accent); margin-bottom: 10px; }
+.dim-text { color: var(--dim); font-size: 13px; }
+.btn-outline { background: none; border: 1px solid #ff4757; color: #ff4757; padding: 8px 20px; border-radius: 20px; margin-top: 15px; font-weight: bold; cursor: pointer;}
+.profile-stats { background: var(--card); padding: 20px; border-radius: 15px; margin: 30px 0; border: 1px solid var(--glass); }
+.stat-num { font-size: 28px; color: var(--accent); font-weight: bold; }
+.stat-label { display: block; font-size: 12px; color: var(--dim); }
+
+.upload-container { padding: 20px; }
+.btn-primary { width: 100%; padding: 15px; background: var(--accent); border: none; border-radius: 12px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+.modal-box { background: var(--card); padding: 20px; border-radius: 20px; text-align: center; width: 80%; border: 1px solid var(--glass); }
+.folder-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; }
+.folder-card { background: var(--card); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; font-size: 11px; }
+
+/* RECENTLY ADDED PROFILE TAB EXTRAS (Merged carefully) */
+#logged-out-view, #logged-in-view { transition: opacity 0.3s ease; }
+.profile-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+.stat-box { display: flex; flex-direction: column; align-items: center; }

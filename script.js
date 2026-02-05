@@ -11,33 +11,45 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const storage = firebase.storage();
+const auth = firebase.auth(); // Added Auth Service
 
-// --- ADMIN CREDENTIALS ---
-const MY_ID = "8885221381";
-const MY_PW = "38114421Ch";
 let isAdmin = false;
 
-// --- AUTH LOGIC ---
-function manualLogin() {
-    const user = document.getElementById('adminUser').value;
-    const pass = document.getElementById('adminPass').value;
-
-    if (user === MY_ID && pass === MY_PW) {
+// --- GOOGLE/EMAIL AUTH LOGIC ---
+// This listens for login/logout changes automatically
+auth.onAuthStateChanged((user) => {
+    if (user) {
         isAdmin = true;
         document.getElementById('logged-out-view').style.display = 'none';
         document.getElementById('logged-in-view').style.display = 'block';
-        showAlert("Admin Warehouse Unlocked!");
-        renderMemes();
+        console.log("Logged in as:", user.email);
     } else {
-        showAlert("Access Denied: Wrong ID or Password");
+        isAdmin = false;
+        document.getElementById('logged-out-view').style.display = 'block';
+        document.getElementById('logged-in-view').style.display = 'none';
+    }
+    renderMemes(); // Refresh memes to show/hide delete buttons
+});
+
+async function manualLogin() {
+    const email = document.getElementById('adminUser').value; // Enter your Email
+    const pass = document.getElementById('adminPass').value; // Enter your Password
+
+    try {
+        await auth.signInWithEmailAndPassword(email, pass);
+        showAlert("Welcome back, Admin!");
+    } catch (error) {
+        showAlert("Login Failed: " + error.message);
     }
 }
 
-function manualLogout() {
-    isAdmin = false;
-    document.getElementById('logged-out-view').style.display = 'block';
-    document.getElementById('logged-in-view').style.display = 'none';
-    renderMemes();
+async function manualLogout() {
+    try {
+        await auth.signOut();
+        showAlert("Warehouse Locked.");
+    } catch (error) {
+        showAlert("Logout failed.");
+    }
 }
 
 // --- NAVIGATION ---
@@ -75,6 +87,7 @@ async function renderMemes(filter = "All", btn = null) {
 
 function createCard(id, m) {
     let deleteBtn = "";
+    // Only show delete button if Firebase confirms you are logged in
     if (isAdmin) {
         deleteBtn = `<button onclick="deleteMeme('${id}', '${m.storagePath}')" style="background:#ff4757; color:white; border:none; width:100%; padding:8px; margin-top:8px; border-radius:8px; font-weight:bold; cursor:pointer;">🗑️ DELETE</button>`;
     }
@@ -94,7 +107,7 @@ function createCard(id, m) {
         </div>`;
 }
 
-// --- FEATURES ---
+// --- UPLOAD, LIKE & DELETE ---
 async function handleLike(id) {
     await db.collection("memes").doc(id).update({ 
         likes: firebase.firestore.FieldValue.increment(1) 

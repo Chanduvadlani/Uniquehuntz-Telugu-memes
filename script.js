@@ -9,7 +9,6 @@ const firebaseConfig = {
 };
 
 // --- CLOUDINARY SETTINGS ---
-// Updated with your actual Cloud Name from the screenshot
 const CLOUD_NAME = "dgihkijul"; 
 const UPLOAD_PRESET = "uniquehuntz_preset"; 
 
@@ -37,19 +36,18 @@ auth.onAuthStateChanged((user) => {
     renderMemes(); 
 });
 
-// --- CORE FUNCTIONS ---
-
+// --- ADMIN LOGIN/LOGOUT ---
 async function manualLogin() {
-    const email = document.getElementById('adminUser').value;
-    const pass = document.getElementById('adminPass').value;
+    const email = document.getElementById('adminUser').value.trim();
+    const pass = document.getElementById('adminPass').value.trim();
     
-    if(!email || !pass) return showAlert("Please enter Email & Password");
+    if(!email || !pass) return showAlert("Enter Email & Password");
 
     try {
         await auth.signInWithEmailAndPassword(email, pass);
-        showAlert("Access Granted, Boss!");
-    } catch (error) {
-        showAlert("Login Error: " + error.message);
+        showAlert("Admin Access Granted!");
+    } catch (e) {
+        showAlert("Login Failed: " + e.message);
     }
 }
 
@@ -58,18 +56,18 @@ async function manualLogout() {
     showAlert("Warehouse Locked.");
 }
 
+// --- UPLOAD PROCESS ---
 async function processAndUpload() {
     const btn = document.getElementById('uploadBtn');
     const fileInput = document.getElementById('fileInput');
-    const title = document.getElementById('memeTitle').value;
+    const title = document.getElementById('memeTitle').value.trim();
     const artist = document.getElementById('memeArtist').value || "Legend";
     const type = document.getElementById('memeType').value;
-    const tagsInput = document.getElementById('memeTags').value;
 
-    if (!fileInput.files[0] || !title) return showAlert("File and Title are required!");
+    if (!fileInput.files[0] || !title) return showAlert("Missing Title or File!");
 
     btn.disabled = true;
-    btn.innerText = "Uploading to Cloud...";
+    btn.innerText = "Step 1: Uploading to Cloud...";
 
     const file = fileInput.files[0];
     const formData = new FormData();
@@ -77,22 +75,23 @@ async function processAndUpload() {
     formData.append('upload_preset', UPLOAD_PRESET);
 
     try {
-        // Resource type must be 'auto' to handle images and videos automatically
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, {
+        // We use /auto/ so Cloudinary detects if it's an image or video automatically
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, {
             method: 'POST',
             body: formData
         });
         
         const data = await response.json();
-        
+
+        // If Cloudinary rejects the file
         if (!data.secure_url) {
-            console.error("Cloudinary Error:", data);
-            throw new Error(data.error ? data.error.message : "Upload failed");
+            console.error("Cloudinary Error Log:", data);
+            throw new Error(data.error ? data.error.message : "Cloudinary upload failed");
         }
 
-        btn.innerText = "Saving to Database...";
+        btn.innerText = "Step 2: Saving to Firebase...";
 
-        // Save to Firebase Firestore
+        // Save link and metadata to Firestore
         await db.collection("memes").add({
             title: title,
             artist: artist,
@@ -100,40 +99,48 @@ async function processAndUpload() {
             public_id: data.public_id,
             type: type,
             likes: 0,
-            tags: (title + " " + artist + " " + tagsInput).toLowerCase(),
+            tags: (title + " " + artist).toLowerCase(),
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        showAlert("Success! Added to Warehouse.");
+        showAlert("Meme Added Successfully!");
         switchPage('feed');
         
-        // Reset form
+        // Reset inputs
         document.getElementById('memeTitle').value = "";
         fileInput.value = "";
+
     } catch (e) {
-        console.error("Full Error:", e);
-        showAlert("Error: " + e.message);
+        console.error("Critical Error:", e);
+        showAlert("Upload Error: " + e.message);
     } finally {
         btn.disabled = false;
         btn.innerText = "Secure to Warehouse";
     }
 }
 
+// --- RENDERING ---
 async function renderMemes(filter = "All") {
     const grid = document.getElementById('memeGrid');
     if(!grid) return;
-    grid.innerHTML = "<p style='text-align:center;'>Hunting Templates...</p>";
+    grid.innerHTML = "<p style='text-align:center;'>Fetching Warehouse Data...</p>";
 
     try {
         const snapshot = await db.collection("memes").orderBy("timestamp", "desc").get();
         grid.innerHTML = "";
+        
+        if (snapshot.empty) {
+            grid.innerHTML = "<p style='text-align:center; grid-column:1/-1;'>Warehouse is empty. Add some memes!</p>";
+            return;
+        }
+
         snapshot.forEach(doc => {
             const m = doc.data();
             if (filter !== "All" && m.artist !== filter) return;
             grid.innerHTML += createCard(doc.id, m);
         });
     } catch(e) {
-        grid.innerHTML = "Warehouse Busy. Try again.";
+        grid.innerHTML = "Database error. Please refresh.";
     }
 }
 
@@ -155,13 +162,13 @@ function createCard(id, m) {
         </div>`;
 }
 
+// --- FEATURES ---
 async function deleteMeme(id) {
-    if(confirm("Admin: Remove this template forever?")) {
+    if(confirm("Permanently delete this from the warehouse?")) {
         try {
             await db.collection("memes").doc(id).delete();
-            showAlert("Removed.");
             renderMemes();
-        } catch(e) { showAlert("Error deleting."); }
+        } catch(e) { showAlert("Delete failed."); }
     }
 }
 
@@ -173,17 +180,16 @@ async function handleLike(id) {
     if(l) l.innerText = parseInt(l.innerText) + 1;
 }
 
-// --- NAVIGATION ---
+// --- UI / NAVIGATION ---
 function switchPage(pageId) {
     document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-    const targetPage = document.getElementById(`${pageId}-page`);
-    if(targetPage) targetPage.style.display = 'block';
+    const target = document.getElementById(`${pageId}-page`);
+    if(target) target.style.display = 'block';
     
-    // Update active nav item
-    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const navId = pageId === 'feed' ? 'home' : pageId;
-    const navBtn = document.getElementById(`nav-${navId}`);
-    if(navBtn) navBtn.classList.add('active');
+    const activeNav = document.getElementById(`nav-${navId}`);
+    if(activeNav) activeNav.classList.add('active');
 
     if(pageId === 'feed') renderMemes();
 }
@@ -197,14 +203,13 @@ function filterMemes() {
 }
 
 function showAlert(m) { 
-    const alertBox = document.getElementById('customAlert');
-    const alertMsg = document.getElementById('alertMessage');
-    if(alertBox && alertMsg) {
-        alertMsg.innerText = m; 
-        alertBox.style.display = 'flex'; 
-    }
+    document.getElementById('alertMessage').innerText = m; 
+    document.getElementById('customAlert').style.display = 'flex'; 
 }
-function closeAlert() { document.getElementById('customAlert').style.display = 'none'; }
-function shareWA(url) { window.open(`https://wa.me/?text=${encodeURIComponent(url)}`); }
 
+function closeAlert() { document.getElementById('customAlert').style.display = 'none'; }
+
+function shareWA(url) { window.open(`https://wa.me/?text=Check this meme: ${encodeURIComponent(url)}`); }
+
+// Start
 window.onload = () => renderMemes();

@@ -60,16 +60,14 @@
         <section id="profile-page" class="page" style="display: none;">
             <div id="logged-out-view" class="profile-container">
                 <div class="auth-hero">
-                    <div class="hero-icon">🔒</div>
-                    <h2>Admin Access</h2>
-                    <input type="email" id="adminUser" placeholder="Email Address" class="admin-input">
-<input type="password" id="adminPass" placeholder="Password" class="admin-input">
-<button class="btn-primary" onclick="manualLogin()">Access Warehouse</button>
-                    <p class="dim-text">Enter your Warehouse ID and Password.</p>
-                    <div style="margin-top: 20px;">
-                        <input type="text" id="adminUser" placeholder="User ID" class="admin-input">
-                        <input type="password" id="adminPass" placeholder="Password" class="admin-input">
-                        <button class="btn-primary" onclick="manualLogin()">Access Warehouse</button>
+                    <div class="hero-icon">🔐</div>
+                    <h2>Admin Warehouse</h2>
+                    <p class="dim-text">Authorized access only.</p>
+                    
+                    <div class="login-card">
+                        <input type="email" id="adminUser" placeholder="Admin Email" class="admin-input">
+                        <input type="password" id="adminPass" placeholder="Secret Password" class="admin-input">
+                        <button class="btn-primary" onclick="manualLogin()">Unlock Warehouse</button>
                     </div>
                 </div>
             </div>
@@ -77,9 +75,12 @@
             <div id="logged-in-view" class="profile-container" style="display:none;">
                 <div class="profile-header">
                     <div class="hero-icon">🔓</div>
-                    <h2>Admin Mode Active</h2>
-                    <p class="dim-text">Full management enabled.</p>
-                    <button class="btn-outline" onclick="manualLogout()">Lock Warehouse</button>
+                    <h2>Admin Mode: ON</h2>
+                    <p id="displayEmail" class="dim-text">Logged in</p>
+                    <button class="btn-outline" onclick="manualLogout()">Lock & Exit</button>
+                </div>
+                <div class="admin-stats">
+                    <p>Total control active. You can now delete any template from the Feed.</p>
                 </div>
             </div>
         </section>
@@ -96,10 +97,10 @@
         <div class="modal-box">
             <h3 id="alertTitle" style="color:var(--accent); margin-top:0;">UniqueHuntz</h3>
             <p id="alertMessage"></p>
-            <button class="btn-primary" onclick="closeAlert()">Got it</button>
+            <button class="btn-primary" onclick="closeAlert()">Done</button>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
-    </html>
+                        </html>

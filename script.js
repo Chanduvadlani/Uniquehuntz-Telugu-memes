@@ -1,40 +1,94 @@
-// 1. YOUR FIREBASE CONFIGURATION
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+import { getStorage, ref, deleteObject } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-storage.js";
+
 const firebaseConfig = {
-    apiKey: "YOUR_ACTUAL_API_KEY",
-    authDomain: "uniquehuntz-telugu-memes.firebaseapp.com",
-    projectId: "uniquehuntz-telugu-memes",
-    storageBucket: "uniquehuntz-telugu-memes.appspot.com",
-    messagingSenderId: "YOUR_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDbNRvlCOOP-JObYpLTFHzFQfld7nuEmzw",
+  authDomain: "uniquehuntz-telugu-memes.firebaseapp.com",
+  projectId: "uniquehuntz-telugu-memes",
+  storageBucket: "uniquehuntz-telugu-memes.firebasestorage.app",
+  messagingSenderId: "353299095115",
+  appId: "1:353299095115:web:b5c6e41e019237b15037ce"
 };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-const storage = firebase.storage();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
 
-// 2. YOUR SECRET ADMIN UID (From Firebase Auth > Users tab)
+// 1. YOUR SECRET ADMIN UID (Find this in Firebase Auth Users tab after login)
 const ADMIN_UID = "PASTE_YOUR_UID_HERE"; 
 
 let currentUser = null;
 
-// 3. MOBILE-SAFE LOGIN (Using Redirect)
-function login() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithRedirect(provider);
-}
+// Handle Login (Attach this to your existing login button)
+window.login = () => {
+    const provider = new GoogleAuthProvider();
+    signInWithRedirect(auth, provider);
+};
 
-// Check if user is logged in
-auth.onAuthStateChanged((user) => {
+// Monitor user state
+onAuthStateChanged(auth, (user) => {
     currentUser = user;
-    renderMemes(); // Refresh the list to show/hide delete buttons
+    renderMemes(); 
 });
 
-// "Catch" the user after the redirect login
-auth.getRedirectResult().catch((error) => {
-    if (error.code === 'auth/unauthorized-domain') {
-        alert("Domain Error: Add chanduvadlani.github.io to Firebase Authorized Domains!");
+// Handle Redirect Login Result
+getRedirectResult(auth).catch((error) => {
+    console.error("Auth error:", error.code);
+});
+
+// 2. MODIFIED CARD GENERATION (Keeps your UI, adds hidden button)
+async function renderMemes() {
+    const container = document.getElementById('memeContainer');
+    if(!container) return;
+    
+    const querySnapshot = await getDocs(collection(db, "memes"));
+    container.innerHTML = "";
+    
+    querySnapshot.forEach((memeDoc) => {
+        const m = memeDoc.data();
+        const id = memeDoc.id;
+        
+        // This button only exists if YOU are logged in
+        let adminHtml = "";
+        if (currentUser && currentUser.uid === ADMIN_UID) {
+            adminHtml = `<button onclick="deleteMeme('${id}', '${m.storagePath}')" 
+                        style="background:rgba(255,0,0,0.1); color:red; border:1px solid red; width:100%; padding:5px; margin-top:5px; border-radius:5px; font-size:12px; cursor:pointer;">
+                        🗑️ Delete Template
+                        </button>`;
+        }
+
+        // Using your current UI structure
+        container.innerHTML += `
+            <div class="meme-card">
+                <div class="card-media">${m.type === 'video' ? '🎬' : '🖼️'}</div>
+                <div class="card-info">
+                    <h3>${m.title}</h3>
+                    <button class="btn-download" onclick="window.open('${m.url}')">GET</button>
+                    ${adminHtml}
+                </div>
+            </div>`;
+    });
+}
+
+// 3. ACTUAL DELETE FUNCTION
+window.deleteMeme = async (id, path) => {
+    if(confirm("Admin: Delete this forever?")) {
+        try {
+            await deleteDoc(doc(db, "memes", id)); // Remove from database
+            if(path) {
+                const fileRef = ref(storage, path);
+                await deleteObject(fileRef); // Remove file from storage
+            }
+            alert("Deleted successfully.");
+            location.reload(); 
+        } catch(e) {
+            alert("Delete failed: " + e.message);
+        }
+    }
+};        alert("Domain Error: Add chanduvadlani.github.io to Firebase Authorized Domains!");
     }
 });
 

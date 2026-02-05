@@ -47,17 +47,4 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Poppi
 /* RECENTLY ADDED PROFILE TAB EXTRAS (Merged carefully) */
 #logged-out-view, #logged-in-view { transition: opacity 0.3s ease; }
 .profile-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
-.stat-box { display: flex; flex-direction: column; align-items: center; }.stat-num { font-size: 28px; color: var(--accent); font-weight: bold; }
-.stat-label { display: block; font-size: 12px; color: var(--dim); }
-
-.upload-container { padding: 20px; }
-.btn-primary { width: 100%; padding: 15px; background: var(--accent); border: none; border-radius: 12px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 2000; }
-.modal-box { background: var(--card); padding: 20px; border-radius: 20px; text-align: center; width: 80%; border: 1px solid var(--glass); }
-.folder-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; }
-.folder-card { background: var(--card); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; font-size: 11px; }
-
-/* RECENTLY ADDED PROFILE TAB EXTRAS (Merged carefully) */
-#logged-out-view, #logged-in-view { transition: opacity 0.3s ease; }
-.profile-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
 .stat-box { display: flex; flex-direction: column; align-items: center; }

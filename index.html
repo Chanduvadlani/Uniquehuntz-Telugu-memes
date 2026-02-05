@@ -3,30 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniqueHuntz | Telugu Meme Social</title>
+    <title>UniqueHuntz | Telugu Meme Warehouse</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <header class="app-header">
-        <h1 id="logo">UNIQUEHUNTZ</h1>
+        <h1 onclick="location.reload()">UNIQUEHUNTZ</h1>
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search Sunil, Brahmi, vibes...">
+            <input type="text" id="searchInput" placeholder="Search Sunil, Brahmi, vibes..." onkeyup="filterMemes()">
         </div>
         <div class="category-bar">
-            <button class="chip active" id="filter-all">All</button>
-            <button class="chip" id="filter-popular">🔥 Popular</button>
-            <button class="chip" id="filter-mass">Mass</button>
+            <button class="chip active" onclick="renderMemes('All', this)">All</button>
+            <button class="chip" onclick="renderPopular(this)">🔥 Popular</button>
+            <button class="chip" onclick="renderMemes('Mass', this)">Mass</button>
+            <button class="chip" onclick="renderMemes('Audio', this)">Audio</button>
         </div>
     </header>
 
     <main id="main-content">
-        <section id="feed-page" class="page" style="display: block;">
+        <section id="feed-page" class="page">
             <div class="grid-container" id="memeGrid"></div>
         </section>
 
-        <section id="upload-page" class="page">
+        <section id="library-page" class="page" style="display: none;">
+            <div class="library-container">
+                <h2 class="section-title">Artist Warehouse</h2>
+                <div id="artistFolderGrid" class="folder-grid"></div>
+                <div id="libraryResults" class="grid-container" style="margin-top:20px;"></div>
+            </div>
+        </section>
+
+        <section id="upload-page" class="page" style="display: none;">
             <div class="upload-container">
                 <h2>New Entry</h2>
                 <select id="memeType">
@@ -35,6 +50,56 @@
                     <option value="audio">🎵 Audio</option>
                 </select>
                 <input type="text" id="memeArtist" placeholder="Artist Name">
+                <input type="text" id="memeTitle" placeholder="Template Title">
+                <input type="text" id="memeTags" placeholder="Tags (comedy, angry)">
+                <input type="file" id="fileInput">
+                <button class="btn-primary" id="uploadBtn" onclick="processAndUpload()">Secure to Warehouse</button>
+            </div>
+        </section>
+
+        <section id="profile-page" class="page" style="display: none;">
+            <div id="logged-out-view" class="profile-container">
+                <div class="auth-hero">
+                    <div class="hero-icon">🔒</div>
+                    <h2>Admin Access</h2>
+                    <p class="dim-text">Enter your Warehouse ID and Password.</p>
+                    <div style="margin-top: 20px;">
+                        <input type="text" id="adminUser" placeholder="User ID" class="admin-input">
+                        <input type="password" id="adminPass" placeholder="Password" class="admin-input">
+                        <button class="btn-primary" onclick="manualLogin()">Access Warehouse</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="logged-in-view" class="profile-container" style="display:none;">
+                <div class="profile-header">
+                    <div class="hero-icon">🔓</div>
+                    <h2>Admin Mode Active</h2>
+                    <p class="dim-text">Full management enabled.</p>
+                    <button class="btn-outline" onclick="manualLogout()">Lock Warehouse</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" id="nav-home" onclick="switchPage('feed')"><span>🏠 Feed</span></div>
+        <div class="nav-item" id="nav-library" onclick="switchPage('library')"><span>📂 Library</span></div>
+        <div class="nav-item" id="nav-upload" onclick="switchPage('upload')"><span>📤 Upload</span></div>
+        <div class="nav-item" id="nav-profile" onclick="switchPage('profile')"><span>👤 Admin</span></div>
+    </nav>
+
+    <div id="customAlert" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h3 id="alertTitle" style="color:var(--accent); margin-top:0;">UniqueHuntz</h3>
+            <p id="alertMessage"></p>
+            <button class="btn-primary" onclick="closeAlert()">Got it</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>                <input type="text" id="memeArtist" placeholder="Artist Name">
                 <input type="text" id="memeTitle" placeholder="Template Title">
                 <input type="file" id="fileInput">
                 <button class="btn-primary" id="uploadBtn">Secure to Warehouse</button>

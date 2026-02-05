@@ -1,40 +1,98 @@
+// 1. YOUR FIREBASE CONFIGURATION
 const firebaseConfig = {
-  apiKey: "AIzaSyDbNRvlCOOP-JObYpLTFHzFQ...", 
-  authDomain: "uniquehuntz-telugu-memes.firebaseapp.com",
-  projectId: "uniquehuntz-telugu-memes",
-  storageBucket: "uniquehuntz-telugu-memes.appspot.com",
-  messagingSenderId: "353299095115",
-  appId: "1:353299095115:web:b5c6e41e019237b15037ce"
+    apiKey: "YOUR_ACTUAL_API_KEY",
+    authDomain: "uniquehuntz-telugu-memes.firebaseapp.com",
+    projectId: "uniquehuntz-telugu-memes",
+    storageBucket: "uniquehuntz-telugu-memes.appspot.com",
+    messagingSenderId: "YOUR_ID",
+    appId: "YOUR_APP_ID"
 };
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const storage = firebase.storage();
 const auth = firebase.auth();
-const provider = new firebase.auth.GoogleAuthProvider();
+const storage = firebase.storage();
+
+// 2. YOUR SECRET ADMIN UID (From Firebase Auth > Users tab)
+const ADMIN_UID = "PASTE_YOUR_UID_HERE"; 
 
 let currentUser = null;
 
-// Auth Observer - Handles UI switching inside the Profile Tab
-auth.onAuthStateChanged(user => {
-    const loView = document.getElementById('logged-out-view');
-    const liView = document.getElementById('logged-in-view');
+// 3. MOBILE-SAFE LOGIN (Using Redirect)
+function login() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithRedirect(provider);
+}
 
-    if (user) {
-        currentUser = user;
-        // Update Profile Tab UI
-        if(loView) loView.style.display = 'none';
-        if(liView) {
-            liView.style.display = 'block';
-            document.getElementById('profile-pic').src = user.photoURL;
-            document.getElementById('profile-name').innerText = user.displayName;
-            document.getElementById('profile-email').innerText = user.email;
+// Check if user is logged in
+auth.onAuthStateChanged((user) => {
+    currentUser = user;
+    renderMemes(); // Refresh the list to show/hide delete buttons
+});
+
+// "Catch" the user after the redirect login
+auth.getRedirectResult().catch((error) => {
+    if (error.code === 'auth/unauthorized-domain') {
+        alert("Domain Error: Add chanduvadlani.github.io to Firebase Authorized Domains!");
+    }
+});
+
+// 4. UPDATED CARD CREATION (Shows delete button only for Admin)
+function createCard(id, m) {
+    let adminBtn = "";
+    
+    // Check if the current user matches your secret Admin UID
+    if (currentUser && currentUser.uid === ADMIN_UID) {
+        adminBtn = `
+            <button onclick="deleteMeme('${id}', '${m.storagePath}')" 
+            style="background:#ff4757; color:white; border:none; width:100%; padding:10px; margin-top:10px; border-radius:8px; font-weight:bold; cursor:pointer;">
+            🗑️ Delete Template (Admin)
+            </button>`;
+    }
+
+    return `
+        <div class="meme-card">
+            <div class="card-media">${m.type === 'video' ? '🎬' : '🖼️'}</div>
+            <div class="card-info">
+                <h3>${m.title}</h3>
+                <button class="btn-download" onclick="window.open('${m.url}')">GET</button>
+                ${adminBtn}
+            </div>
+            <div class="card-engagement">
+                <button class="engage-btn" onclick="handleLike('${id}')">❤️ ${m.likes || 0}</button>
+                <button class="engage-btn" onclick="shareWA('${m.url}')">🔗 Share</button>
+            </div>
+        </div>`;
+}
+
+// 5. DELETE FUNCTION (Wipes from both Database & Storage)
+async function deleteMeme(id, storagePath) {
+    if (confirm("Are you sure? This will delete the template forever.")) {
+        try {
+            // Delete from Firestore
+            await db.collection("memes").doc(id).delete();
+            // Delete from Storage
+            await storage.ref(storagePath).delete();
+            
+            alert("Deleted successfully!");
+            location.reload(); // Refresh the page
+        } catch (error) {
+            console.error(error);
+            alert("Error: " + error.message);
         }
-        fetchUserStats();
-    } else {
-        currentUser = null;
-        // Reset Profile Tab UI
+    }
+}
+
+// Standard Render Function
+async function renderMemes() {
+    const container = document.getElementById('memeContainer');
+    container.innerHTML = "";
+    const snapshot = await db.collection("memes").get();
+    snapshot.forEach(doc => {
+        container.innerHTML += createCard(doc.id, doc.data());
+    });
+}        // Reset Profile Tab UI
         if(loView) loView.style.display = 'block';
         if(liView) liView.style.display = 'none';
     }
